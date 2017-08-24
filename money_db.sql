@@ -3,7 +3,7 @@ CREATE TABLE bank_movements (
     date INTEGER,
     description TEXT,
     confirmation INTEGER,
-    loss REAL
+    loss REAL,
     gain REAL,
     balance REAL,
     category TEXT,
