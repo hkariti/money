@@ -1,7 +1,10 @@
+*.sqlite3
+datafiles_cleartext
 #python virtualenv
 /venv
 
 # compiled output
+__pycache__
 dist
 tmp
 out-tsc
@@ -11,6 +14,7 @@ out-tsc
 node_modules
 
 # IDEs and editors
+*.swp
 .*~
 .idea
 .project
