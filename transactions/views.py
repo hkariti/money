@@ -148,7 +148,7 @@ def get_transactions(request, account=None):
         transactions = chain(transactions_to, transactions_from)
     else:
         transactions = models.Transactions.objects.all()
-    return HttpResponse(serialize('json', transactions))
+    return HttpResponse(serialize('json', transactions, use_natural_foreign_keys=True))
 
 @csrf_exempt
 def get_accounts(request):

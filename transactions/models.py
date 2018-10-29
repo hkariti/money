@@ -9,16 +9,25 @@ class Accounts(models.Model):
     def __str__(self):
         return self.name
 
+    def natural_key(self):
+        return self.name
+
 class Categories(models.Model):
     title = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
         return self.title
 
+    def natural_key(self):
+        return self.title
+
 class Subcategories(models.Model):
     title = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
+        return self.title
+
+    def natural_key(self):
         return self.title
 
 class ClusteringRules(models.Model):
