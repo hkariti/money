@@ -35,7 +35,9 @@ class Transaction(models.Model):
     notes = models.CharField(max_length=200, blank=True, null=True)
 
     def __str__(self):
-        return "{0} from {1} to {2} on {3}".format(self.billed_amount, self.from_account.name, self.to_account.name, self.transaction_date.ctime())
+        from_name = getattr(self.from_account, 'name', 'outside')
+        to_name = getattr(self.to_account, 'name', 'outside')
+        return "{0} from {1} to {2} on {3}".format(self.billed_amount, from_name, to_name, self.transaction_date.ctime())
 
     def clean(self):
         if not self.from_account and not self.to_account:
