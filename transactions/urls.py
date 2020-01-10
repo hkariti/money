@@ -8,5 +8,6 @@ router.register('transactions', views.TransactionViewSet)
 router.register('categories', views.CategoryViewSet)
 
 urlpatterns = [
+    path('fetch/leumicard', views.fetch_leumicard_view),
     path('', include(router.urls)),
 ]
