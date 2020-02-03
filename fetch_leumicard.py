@@ -1,8 +1,9 @@
 #!/usr/bin/python
-import re
-import xml.etree.ElementTree as etree
 import requests
 from datetime import datetime
+import re
+
+from fetch_utils import get_input_tag
 
 class FetchException(Exception):
     def __init__(self, message, response):
@@ -29,26 +30,6 @@ class CreditCardTransaction:
     def __repr__(self):
         return f'CreditCardTransaction(card={self.card}, transaction_date={self.transaction_date.isoformat()}, bill_date={self.bill_date.isoformat()}, description={self.description}, transaction_amount={self.transaction_amount}, bill_amount={self.bill_amount}, original_currency={self.original_currency}, comment={self.comment})'
 
-def extract_input_tags(raw_html):
-    return re.findall(pattern='<input[^>]*/>', string=raw_html)
-
-def convert_to_elements(input_tags):
-    return [ etree.fromstring(t) for t in input_tags ]
-
-def match_name_pattern(input_element, name):
-    return re.match(string=input_element.get('name') or '', pattern=name) is not None
-
-def get_element_by_name(input_elements, name):
-    return [ e for e in input_elements if match_name_pattern(e, name) ]
-
-def get_view_state(raw_html):
-    tags = extract_input_tags(raw_html)
-    elements = convert_to_elements(tags)
-    view_state_elements = get_element_by_name(elements, '__VIEWSTATE')
-    view_state_dict = { x.get('name'): x.get('value') for x in view_state_elements }
-
-    return view_state_dict
-
 def get_user_pass_dict(user, passwd):
     return {
             'ctl00$PlaceHolderMain$CardHoldersLogin1$txtUserName': str(user),
@@ -59,7 +40,7 @@ def encode_dict(d, target='utf-8'):
     return { k.encode('utf-8'): v.encode('utf-8') for k, v in d.items() }
 
 def get_login_data(raw_html, user, passwd):
-    d1 = get_view_state(raw_html)
+    d1 = get_input_tag(raw_html, re.compile('__VIEWSTATE'))
     d2 = get_user_pass_dict(user, passwd)
     return encode_dict({**d1, **d2, 'ctl00$PlaceHolderMain$CardHoldersLogin1$btnLogin': 'לכניסה+לאזור+האישי' })
 

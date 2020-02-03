@@ -9,5 +9,6 @@ router.register('categories', views.CategoryViewSet)
 
 urlpatterns = [
     path('fetch/leumicard', views.fetch_leumicard_view),
+    path('fetch/leumi', views.fetch_leumi_view),
     path('', include(router.urls)),
 ]

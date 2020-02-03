@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view
 from .models import Account, Transaction, Category
 from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer
 import fetch_leumicard
+import fetch_leumi
 
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
@@ -43,3 +44,22 @@ def fetch_leumicard_view(request):
         return Response(transactions)
     except fetch_leumicard.FetchException as e:
         return Response(e.message, status=400)
+
+@api_view(http_method_names=['POST'])
+def fetch_leumi_view(request):
+    try:
+        user = request.data["user"]
+        passwd = request.data["pass"]
+        month = int(request.data.get("month", datetime.date.today().month))
+        year = int(request.data.get("year", datetime.date.today().year))
+    except IndexError:
+        return Response("'user' and 'pass' params are required.", status=400)
+    try:
+        s = fetch_leumi.login(user, passwd)
+        transactions = fetch_leumi.get_month_transactions(s, month, year)
+        serialized_transactions = [ TransactionSerializer(t).data for t in transactions ]
+        return Response(serialized_transactions)
+    except fetch_leumi.FetchException as e:
+        return Response(e.message, status=400)
+    except Exception as e:
+        return Response(e.message, status=500)
