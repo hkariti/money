@@ -2,6 +2,7 @@
 import requests
 from datetime import datetime
 import re
+from transactions.models import Transaction, Account
 
 from fetch_utils import get_input_tag
 
@@ -9,26 +10,6 @@ class FetchException(Exception):
     def __init__(self, message, response):
         self.message = message
         self.response = response
-
-class CreditCardTransaction:
-    def __init__(self, card, transaction_date, bill_date, description, transaction_amount, bill_amount,
-            original_currency, comment):
-        self.card = card
-        self.transaction_date = transaction_date
-        self.bill_date = bill_date
-        self.description = description
-        self.transaction_amount = transaction_amount
-        self.bill_amount = bill_amount
-        self.original_currency = original_currency
-        self.comment = comment
-
-    def dict(self):
-        return dict(card=self.card, transaction_date=self.transaction_date, bill_date=self.bill_date,
-                description=self.description, transaction_amount=self.transaction_amount, bill_amount=self.bill_amount,
-                original_currency=self.original_currency, comment=self.comment)
-
-    def __repr__(self):
-        return f'CreditCardTransaction(card={self.card}, transaction_date={self.transaction_date.isoformat()}, bill_date={self.bill_date.isoformat()}, description={self.description}, transaction_amount={self.transaction_amount}, bill_amount={self.bill_amount}, original_currency={self.original_currency}, comment={self.comment})'
 
 def get_user_pass_dict(user, passwd):
     return {
@@ -69,17 +50,22 @@ def get_month_transactions_raw(s, month, year):
 
     return response_data
 
-def parse_transaction(transaction):
-    return CreditCardTransaction(card = transaction['shortCardNumber'],
-            transaction_date = datetime.fromisoformat(transaction['purchaseDate']).date(),
-            bill_date = datetime.fromisoformat(transaction['paymentDate']).date(),
-            description = transaction['merchantName'],
-            transaction_amount = transaction['originalAmount'],
-            bill_amount = transaction['actualPaymentAmount'],
-            original_currency = transaction['originalCurrency'],
-            comment = transaction['comments']
-    )
+def parse_transactions(accounts, transaction_dicts):
+    get_account = lambda a: next(filter(lambda x: x.backend_id == a, accounts))
+    def parse_entry(d):
+        return Transaction(
+                from_account = get_account(d['shortCardNumber']),
+                transaction_date = datetime.fromisoformat(d['purchaseDate']).date(),
+                bill_date = datetime.fromisoformat(d['paymentDate']).date(),
+                description = d['merchantName'],
+                transaction_amount = d['originalAmount'],
+                billed_amount = d['actualPaymentAmount'],
+                original_currency = d['originalCurrency'],
+                notes = d['comments']
+                )
+    return [ parse_entry(d) for d in transaction_dicts ]
 
 def get_month_transactions(s, month, year):
+    accounts = list(Account.objects.filter(backend_type = "leumicard"))
     raw_transactions = get_month_transactions_raw(s, month, year)
-    return [ parse_transaction(t) for t in raw_transactions['result']['transactions'] ]
+    return parse_transactions(accounts, raw_transactions['result']['transactions'])

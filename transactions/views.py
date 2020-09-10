@@ -39,8 +39,8 @@ def fetch_leumicard_view(request):
         return Response("'user' and 'pass' params are required.", status=400)
     try:
         s = fetch_leumicard.login(user, passwd)
-        cc_transactions = fetch_leumicard.get_month_transactions(s, month, year)
-        transactions = [ TransactionSerializer(Transaction.from_credit_card(t)).data for t in cc_transactions ]
+        transactions = fetch_leumicard.get_month_transactions(s, month, year)
+        transactions = [ TransactionSerializer(t).data for t in transactions ]
         return Response(transactions)
     except fetch_leumicard.FetchException as e:
         return Response(e.message, status=400)

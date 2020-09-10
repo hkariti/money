@@ -14,7 +14,7 @@ class FetchException(Exception):
 def parseBankinDat(accounts, bankin):
     c = csv.reader(bankin)
     get_date = lambda d: datetime.datetime.strptime(d, '%d%m%y').date()
-    get_account = lambda a: next(filter(lambda x: x.name == a, accounts))
+    get_account = lambda a: next(filter(lambda x: x.backend_id == a, accounts))
     def parse_entry(e):
         amount = float(e[3])
         if amount < 0:
@@ -114,7 +114,7 @@ def fetch_csv(s, from_date, to_date, encoding='cp862'):
     return content_lines
 
 def get_month_transactions(s, month, year):
-    accounts = list(Account.objects.all())
+    accounts = list(Account.objects.filter(backend_type = "leumi"))
     from_date = datetime.date(year, month, 1).strftime('%d/%m/%y')
     inc_month = 1 + (month % 12)
     inc_year = year + month // 12

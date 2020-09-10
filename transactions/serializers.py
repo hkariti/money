@@ -5,7 +5,7 @@ from rest_framework import serializers
 class AccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'backend_id', 'backend_type']
 
 
 class CategorySerializer(serializers.ModelSerializer):
