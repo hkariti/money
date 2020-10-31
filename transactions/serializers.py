@@ -11,7 +11,7 @@ class AccountSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ['id', 'name']
+        fields = ['id', 'title']
 
 class TransactionSerializer(serializers.ModelSerializer):
     def validate(self, data):
