@@ -14,6 +14,10 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'title']
 
 class TransactionSerializer(serializers.ModelSerializer):
+    category = serializers.SlugRelatedField(slug_field='title', queryset=Category.objects.all())
+    from_account = serializers.SlugRelatedField(slug_field='name', queryset=Account.objects.all(), allow_null=True)
+    to_account = serializers.SlugRelatedField(slug_field='name', queryset=Account.objects.all(), allow_null=True)
+
     def validate(self, data):
         if not data['from_account'] and not data['to_account']:
             raise serializers.ValidationError("At least one of from_account or to_account must not be null")
