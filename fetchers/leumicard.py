@@ -4,12 +4,7 @@ from datetime import datetime
 import re
 from transactions.models import Transaction, Account
 
-from fetch_utils import get_input_tag
-
-class FetchException(Exception):
-    def __init__(self, message, response):
-        self.message = message
-        self.response = response
+from .utils import get_input_tag, FetchException
 
 def get_user_pass_dict(user, passwd):
     return {
@@ -24,19 +19,6 @@ def get_login_data(raw_html, user, passwd):
     d1 = get_input_tag(raw_html, re.compile('__VIEWSTATE'))
     d2 = get_user_pass_dict(user, passwd)
     return encode_dict({**d1, **d2, 'ctl00$PlaceHolderMain$CardHoldersLogin1$btnLogin': 'לכניסה+לאזור+האישי' })
-
-def login(user, passwd):
-    url = 'https://online.max.co.il/Anonymous/Login/CardHoldersLogin.aspx'
-    marker_phrase = 'חיובים, יתרת מסגרת וכרטיסים'
-
-    s = requests.sessions.Session()
-    login_page = s.get(url)
-    login_data = get_login_data(login_page.text, user, passwd)
-    login_response = s.post(url, data=login_data)
-    if not login_response.ok or marker_phrase not in login_response.text:
-        raise FetchException("login failed", response=login_response)
-
-    return s
 
 def get_month_transactions_raw(s, month, year):
     url = f'https://onlinelcapi.max.co.il/api/registered/transactionDetails/getTransactionsAndGraphs?filterData={{%22monthView%22:true,%22date%22:%22{year:d}-{month:02d}-01%22}}'
@@ -64,6 +46,19 @@ def parse_transactions(accounts, transaction_dicts):
                 notes = d['comments']
                 )
     return [ parse_entry(d) for d in transaction_dicts ]
+
+def login(user, passwd):
+    url = 'https://online.max.co.il/Anonymous/Login/CardHoldersLogin.aspx'
+    marker_phrase = 'חיובים, יתרת מסגרת וכרטיסים'
+
+    s = requests.sessions.Session()
+    login_page = s.get(url)
+    login_data = get_login_data(login_page.text, user, passwd)
+    login_response = s.post(url, data=login_data)
+    if not login_response.ok or marker_phrase not in login_response.text:
+        raise FetchException("login failed", response=login_response)
+
+    return s
 
 def get_month_transactions(s, month, year):
     accounts = list(Account.objects.filter(backend_type = "leumicard"))

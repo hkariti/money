@@ -4,8 +4,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from .models import Account, Transaction, Category
 from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer
-import fetch_leumicard
-import fetch_leumi
+
+import fetchers
 
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
@@ -29,37 +29,26 @@ class TransactionViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 @api_view(http_method_names=['POST'])
-def fetch_leumicard_view(request):
+def fetch_view(request, backend):
+    try:
+        backend_obj = fetchers.get_backend(backend)
+    except KeyError:
+        return Response(f'Unknown backend: {backend}', status=404)
     try:
         user = request.data["user"]
         passwd = request.data["pass"]
         month = int(request.data.get("month", datetime.date.today().month))
         year = int(request.data.get("year", datetime.date.today().year))
-    except IndexError:
-        return Response("'user' and 'pass' params are required.", status=400)
+    except KeyError as e:
+        return Response("'user' and 'pass' params are required", status=400)
+    except ValueError:
+        return Response("'month' and 'year' must be integers", status=400)
     try:
-        s = fetch_leumicard.login(user, passwd)
-        transactions = fetch_leumicard.get_month_transactions(s, month, year)
-        transactions = [ TransactionSerializer(t).data for t in transactions ]
-        return Response(transactions)
-    except fetch_leumicard.FetchException as e:
-        return Response(e.message, status=400)
-
-@api_view(http_method_names=['POST'])
-def fetch_leumi_view(request):
-    try:
-        user = request.data["user"]
-        passwd = request.data["pass"]
-        month = int(request.data.get("month", datetime.date.today().month))
-        year = int(request.data.get("year", datetime.date.today().year))
-    except IndexError:
-        return Response("'user' and 'pass' params are required.", status=400)
-    try:
-        s = fetch_leumi.login(user, passwd)
-        transactions = fetch_leumi.get_month_transactions(s, month, year)
+        s = backend_obj.login(user, passwd)
+        transactions = backend_obj.get_month_transactions(s, month, year)
         serialized_transactions = [ TransactionSerializer(t).data for t in transactions ]
         return Response(serialized_transactions)
-    except fetch_leumi.FetchException as e:
+    except fetchers.FetchException as e:
         return Response(e.message, status=400)
     except Exception as e:
         return Response(e.message, status=500)

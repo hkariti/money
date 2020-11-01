@@ -4,12 +4,8 @@ import requests
 from transactions.models import Transaction, Account
 
 from retry import retry
-from fetch_utils import get_input_tag
 
-class FetchException(Exception):
-    def __init__(self, message, response):
-        self.message = message
-        self.response = response
+from .utils import get_input_tag, FetchException
 
 def parseBankinDat(accounts, bankin):
     c = csv.reader(bankin)
@@ -36,25 +32,6 @@ def parseBankinDat(accounts, bankin):
     transactions = [ parse_entry(l) for l in c]
 
     return transactions
-
-@retry(requests.ReadTimeout, tries=3, delay=1)
-def login(user, passwd, timeout=10):
-    url = 'https://hb2.bankleumi.co.il/authenticate'
-    url_expires_soon = 'https://hb2.bankleumi.co.il/gotolandingpage'
-    marker_phrase = 'ברוך הבא, כניסתך האחרונה'
-    expires_soon_phrase = 'תוקף סיסמתך עומד לפוג בקרוב'
-
-    s = requests.sessions.Session()
-    login_data = dict(uid=user, password=passwd)
-    login_response = s.post(url, data=login_data, timeout=timeout, stream=True)
-
-    if expires_soon_phrase in login_response.text:
-        login_response = s.post(url_expires_soon, timeout=timeout, stream=True)
-
-    if not login_response.ok or marker_phrase not in login_response.text:
-        raise FetchException("login failed", response=login_response)
-
-    return s
 
 def requests_movements_page(s, data=None, timeout=10):
     url = 'https://hb2.bankleumi.co.il/ebanking/Accounts/ExtendedActivity.aspx?WidgetPar=1'
@@ -112,6 +89,25 @@ def fetch_csv(s, from_date, to_date, encoding='cp862'):
     content_lines = list(filter(None, content_text.split('\r\n')))
 
     return content_lines
+
+@retry(requests.ReadTimeout, tries=3, delay=1)
+def login(user, passwd, timeout=10):
+    url = 'https://hb2.bankleumi.co.il/authenticate'
+    url_expires_soon = 'https://hb2.bankleumi.co.il/gotolandingpage'
+    marker_phrase = 'ברוך הבא, כניסתך האחרונה'
+    expires_soon_phrase = 'תוקף סיסמתך עומד לפוג בקרוב'
+
+    s = requests.sessions.Session()
+    login_data = dict(uid=user, password=passwd)
+    login_response = s.post(url, data=login_data, timeout=timeout, stream=True)
+
+    if expires_soon_phrase in login_response.text:
+        login_response = s.post(url_expires_soon, timeout=timeout, stream=True)
+
+    if not login_response.ok or marker_phrase not in login_response.text:
+        raise FetchException("login failed", response=login_response)
+
+    return s
 
 def get_month_transactions(s, month, year):
     accounts = list(Account.objects.filter(backend_type = "leumi"))
