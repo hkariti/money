@@ -1,7 +1,7 @@
 import csv
 import datetime
 import requests
-from transactions.models import Transaction, Account
+from transactions.models import Transaction
 
 from retry import retry
 
@@ -109,8 +109,7 @@ def login(user, passwd, timeout=10):
 
     return s
 
-def get_month_transactions(s, month, year):
-    accounts = list(Account.objects.filter(backend_type = "leumi"))
+def get_month_transactions(s, month, year, accounts):
     from_date = datetime.date(year, month, 1).strftime('%d/%m/%y')
     inc_month = 1 + (month % 12)
     inc_year = year + month // 12

@@ -2,7 +2,7 @@
 import requests
 from datetime import datetime
 import re
-from transactions.models import Transaction, Account
+from transactions.models import Transaction
 
 from .utils import get_input_tag, FetchException
 
@@ -60,7 +60,6 @@ def login(user, passwd):
 
     return s
 
-def get_month_transactions(s, month, year):
-    accounts = list(Account.objects.filter(backend_type = "leumicard"))
+def get_month_transactions(s, month, year, accounts):
     raw_transactions = get_month_transactions_raw(s, month, year)
     return parse_transactions(accounts, raw_transactions['result']['transactions'])

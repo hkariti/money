@@ -39,13 +39,16 @@ def fetch_view(request, backend):
         passwd = request.data["pass"]
         month = int(request.data.get("month", datetime.date.today().month))
         year = int(request.data.get("year", datetime.date.today().year))
+        accounts = list(Account.objects.filter(backend_type=backend))
     except KeyError as e:
         return Response("'user' and 'pass' params are required", status=400)
     except ValueError:
         return Response("'month' and 'year' must be integers", status=400)
+    except Exception as e:
+        return Response(f'Error: {e}', status=500)
     try:
         s = backend_obj.login(user, passwd)
-        transactions = backend_obj.get_month_transactions(s, month, year)
+        transactions = backend_obj.get_month_transactions(s, month, year, accounts)
         serialized_transactions = [ TransactionSerializer(t).data for t in transactions ]
         return Response(serialized_transactions)
     except fetchers.FetchException as e:
