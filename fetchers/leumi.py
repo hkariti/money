@@ -12,26 +12,29 @@ def parseBankinDat(accounts, bankin):
     get_date = lambda d: datetime.datetime.strptime(d, '%d%m%y').date()
     get_account = lambda a: next(filter(lambda x: x.backend_id == a, accounts))
     def parse_entry(e):
-        amount = float(e[3])
-        if amount < 0:
-            return Transaction(from_account=get_account(e[6]),
+        try:
+            amount = float(e[3])
+            if amount < 0:
+                return Transaction(from_account=get_account(e[6]),
+                                   transaction_date=get_date(e[1]),
+                                   bill_date=get_date(e[1]),
+                                   transaction_amount=abs(amount),
+                                   billed_amount=abs(amount),
+                                   description=e[2],
+                                   confirmation=int(e[0]))
+            return Transaction(to_account=get_account(e[6]),
                                transaction_date=get_date(e[1]),
                                bill_date=get_date(e[1]),
                                transaction_amount=abs(amount),
                                billed_amount=abs(amount),
                                description=e[2],
                                confirmation=int(e[0]))
-        return Transaction(to_account=get_account(e[6]),
-                           transaction_date=get_date(e[1]),
-                           bill_date=get_date(e[1]),
-                           transaction_amount=abs(amount),
-                           billed_amount=abs(amount),
-                           description=e[2],
-                           confirmation=int(e[0]))
+        except:
+            return None
 
-    transactions = [ parse_entry(l) for l in c]
+    transactions = ( parse_entry(l) for l in c )
 
-    return transactions
+    return list(filter(None, transactions))
 
 def requests_movements_page(s, data=None, timeout=10):
     url = 'https://hb2.bankleumi.co.il/ebanking/Accounts/ExtendedActivity.aspx?WidgetPar=1'
