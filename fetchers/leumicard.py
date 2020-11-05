@@ -35,17 +35,23 @@ def get_month_transactions_raw(s, month, year):
 def parse_transactions(accounts, transaction_dicts):
     get_account = lambda a: next(filter(lambda x: x.backend_id == a, accounts))
     def parse_entry(d):
-        return Transaction(
-                from_account = get_account(d['shortCardNumber']),
-                transaction_date = datetime.fromisoformat(d['purchaseDate']).date(),
-                bill_date = datetime.fromisoformat(d['paymentDate']).date(),
-                description = d['merchantName'],
-                transaction_amount = d['originalAmount'],
-                billed_amount = d['actualPaymentAmount'],
-                original_currency = d['originalCurrency'],
-                notes = d['comments']
-                )
-    return [ parse_entry(d) for d in transaction_dicts ]
+        try:
+            return Transaction(
+                    from_account = get_account(d['shortCardNumber']),
+                    transaction_date = datetime.fromisoformat(d['purchaseDate']).date(),
+                    bill_date = datetime.fromisoformat(d['paymentDate']).date(),
+                    description = d['merchantName'],
+                    transaction_amount = d['originalAmount'],
+                    billed_amount = d['actualPaymentAmount'],
+                    original_currency = d['originalCurrency'],
+                    notes = d['comments']
+                    )
+        except:
+            return None
+
+    transactions = ( parse_entry(d) for d in transaction_dicts )
+
+    return list(filter(None, transactions))
 
 def login(user, passwd):
     url = 'https://online.max.co.il/Anonymous/Login/CardHoldersLogin.aspx'
@@ -53,6 +59,9 @@ def login(user, passwd):
 
     s = requests.sessions.Session()
     login_page = s.get(url)
+    if not login_page.ok:
+        raise FetchException("login failed", response=login_page)
+
     login_data = get_login_data(login_page.text, user, passwd)
     login_response = s.post(url, data=login_data)
     if not login_response.ok or marker_phrase not in login_response.text:
