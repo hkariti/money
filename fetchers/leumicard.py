@@ -1,24 +1,9 @@
 #!/usr/bin/python
 import requests
 from datetime import datetime
-import re
 from transactions.models import Transaction
 
-from .utils import get_input_tag, FetchException
-
-def get_user_pass_dict(user, passwd):
-    return {
-            'ctl00$PlaceHolderMain$CardHoldersLogin1$txtUserName': str(user),
-            'ctl00$PlaceHolderMain$CardHoldersLogin1$txtPassword': str(passwd)
-    }
-
-def encode_dict(d, target='utf-8'):
-    return { k.encode('utf-8'): v.encode('utf-8') for k, v in d.items() }
-
-def get_login_data(raw_html, user, passwd):
-    d1 = get_input_tag(raw_html, re.compile('__VIEWSTATE'))
-    d2 = get_user_pass_dict(user, passwd)
-    return encode_dict({**d1, **d2, 'ctl00$PlaceHolderMain$CardHoldersLogin1$btnLogin': 'לכניסה+לאזור+האישי' })
+from .utils import FetchException
 
 def get_month_transactions_raw(s, month, year):
     url = f'https://onlinelcapi.max.co.il/api/registered/transactionDetails/getTransactionsAndGraphs?filterData={{%22monthView%22:true,%22date%22:%22{year:d}-{month:02d}-01%22}}'
@@ -54,17 +39,17 @@ def parse_transactions(accounts, transaction_dicts):
     return list(filter(None, transactions))
 
 def login(user, passwd):
-    url = 'https://online.max.co.il/Anonymous/Login/CardHoldersLogin.aspx'
-    marker_phrase = 'חיובים, יתרת מסגרת וכרטיסים'
+    url = 'https://onlinelcapi.max.co.il/api/login/login'
 
     s = requests.sessions.Session()
-    login_page = s.get(url)
-    if not login_page.ok:
-        raise FetchException("login failed", response=login_page)
-
-    login_data = get_login_data(login_page.text, user, passwd)
-    login_response = s.post(url, data=login_data)
-    if not login_response.ok or marker_phrase not in login_response.text:
+    login_data = dict(username=user, password=passwd, id=None)
+    login_response = s.post(url, json=login_data)
+    try:
+        response_json = login_response.json()
+        login_status = response_json.get('Result', {}).get('LoginStatus')
+        if not login_response.ok or login_status != 0:
+            raise FetchException("login failed", response=login_response)
+    except ValueError:
         raise FetchException("login failed", response=login_response)
 
     return s
