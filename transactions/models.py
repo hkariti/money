@@ -1,5 +1,7 @@
 import datetime
 from django.db import models
+from django.db.models import Q
+from django.db.models.constraints import UniqueConstraint
 from django.core.exceptions import ValidationError
 
 import funcy
@@ -45,10 +47,19 @@ class Transaction(models.Model):
         to_name = getattr(self.to_account, 'name', 'outside')
         return "{0} from {1} to {2} on {3}".format(self.billed_amount, from_name, to_name, self.transaction_date.ctime())
 
-    def clean(self):
-        if not self.from_account and not self.to_account:
-            raise ValidationError("At least one of from_account,to_account is required.")
-
     class Meta:
-        unique_together = (('transaction_date', 'from_account', 'to_account', 'billed_amount', 'description'),)
+        constraints = [
+            UniqueConstraint(fields=['transaction_date', 'from_account', 'to_account', 'billed_amount', 'description'],
+                             name='unique_transfer'),
+            UniqueConstraint(fields=['transaction_date', 'to_account', 'billed_amount', 'description'],
+                             condition=Q(from_account=None),
+                             name='unique_income'),
+            UniqueConstraint(fields=['transaction_date', 'from_account', 'billed_amount', 'description'],
+                             condition=Q(to_account=None),
+                             name='unique_expense'),
+            models.CheckConstraint(
+                check=Q(from_account__isnull=False) | Q(to_account__isnull=False),
+                name='some_account_not_null'
+            )
+        ]
 
