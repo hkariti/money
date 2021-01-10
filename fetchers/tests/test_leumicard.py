@@ -87,79 +87,31 @@ class ParseTest(TestCase):
 
 @requests_mock.Mocker()
 class LoginTest(TestCase):
-    auth_url = 'https://online.max.co.il/Anonymous/Login/CardHoldersLogin.aspx'
+    auth_url = 'https://onlinelcapi.max.co.il/api/login/login'
     login_data = '<html><input name="__VIEWSTATE" value="viewstate"></html>'
 
     def test_good_login(self, m):
-        m.register_uri('GET', self.auth_url, text=self.login_data)
-        m.register_uri('POST', self.auth_url, text='<html><body>חיובים, יתרת מסגרת וכרטיסים</body></html>')
+        m.register_uri('POST', self.auth_url, json=dict(Result=dict(LoginStatus=0)))
         user, passwd = 'asd', 'pass'
         s = fetchers.leumicard.login(user, passwd)
-        history = m.request_history
 
         self.assertIsInstance(s, requests.Session)
-        self.assertEqual(m.call_count, 2)
-        self.assertEqual(history[0].method, 'GET')
-        self.assertEqual(history[0].url, self.auth_url)
-        self.assertEqual(history[1].method, 'POST')
-        self.assertEqual(history[1].url, self.auth_url)
-        self.assertIn("__VIEWSTATE=viewstate", history[1].text)
-        self.assertIn(f"ctl00%24PlaceHolderMain%24CardHoldersLogin1%24txtUserName={user}", history[1].text)
-        self.assertIn(f"ctl00%24PlaceHolderMain%24CardHoldersLogin1%24txtPassword={passwd}", history[1].text)
 
-    def test_badlogin(self, m):
-        m.register_uri('GET', self.auth_url, text=self.login_data)
-        m.register_uri('POST', self.auth_url, text='<html><body>לך מכאן!</body></html>')
-
+    def test_badlogin1(self, m):
+        m.register_uri('POST', self.auth_url, json=dict(Result=dict(LoginStatus=1)))
+        user, passwd = 'asd', 'pass'
         self.assertRaisesRegex(FetchException, 'login failed', fetchers.leumicard.login, 'asd', '123')
-        
-        history = m.request_history
-        self.assertEqual(m.call_count, 2)
-        self.assertEqual(history[0].method, 'GET')
-        self.assertEqual(history[0].url, self.auth_url)
-        self.assertEqual(history[1].method, 'POST')
-        self.assertEqual(history[1].url, self.auth_url)
+
+    def test_badlogin2(self, m):
+        m.register_uri('POST', self.auth_url, json=dict(Result=dict(asd=0)))
+        user, passwd = 'asd', 'pass'
+        self.assertRaisesRegex(FetchException, 'login failed', fetchers.leumicard.login, 'asd', '123')
+
+    def test_badlogin3(self, m):
+        m.register_uri('POST', self.auth_url, json=dict(asd=dict(asd=0)))
+        user, passwd = 'asd', 'pass'
+        self.assertRaisesRegex(FetchException, 'login failed', fetchers.leumicard.login, 'asd', '123')
 
     def test_error4xx_logindata(self, m):
-        m.register_uri('GET', self.auth_url, text=self.login_data)
-        m.register_uri('POST', self.auth_url, text='<html><body>לך מכאן!</body></html>', status_code=400)
+        m.register_uri('POST', self.auth_url, json=dict(Result=dict(LoginStatus=0)), status_code=000)
         self.assertRaisesRegex(FetchException, 'login failed', fetchers.leumicard.login, 'asd', '123')
-
-        history = m.request_history
-        self.assertEqual(m.call_count, 2)
-        self.assertEqual(history[0].method, 'GET')
-        self.assertEqual(history[0].url, self.auth_url)
-        self.assertEqual(history[1].method, 'POST')
-        self.assertEqual(history[1].url, self.auth_url)
-
-    def test_error5xx_logindata(self, m):
-        m.register_uri('GET', self.auth_url, text=self.login_data)
-        m.register_uri('POST', self.auth_url, text='<html><body>לך מכאן!</body></html>', status_code=500)
-        self.assertRaisesRegex(FetchException, 'login failed', fetchers.leumicard.login, 'asd', '123')
-
-        history = m.request_history
-        self.assertEqual(m.call_count, 2)
-        self.assertEqual(history[0].method, 'GET')
-        self.assertEqual(history[0].url, self.auth_url)
-        self.assertEqual(history[1].method, 'POST')
-        self.assertEqual(history[1].url, self.auth_url)
-
-    def test_error4xx_loginpage(self, m):
-        m.register_uri('GET', self.auth_url, text=self.login_data, status_code=400)
-        m.register_uri('POST', self.auth_url, text='<html><body>לך מכאן!</body></html>', status_code=400)
-        self.assertRaisesRegex(FetchException, 'login failed', fetchers.leumicard.login, 'asd', '123')
-
-        history = m.request_history
-        self.assertEqual(m.call_count, 1)
-        self.assertEqual(history[0].method, 'GET')
-        self.assertEqual(history[0].url, self.auth_url)
-
-    def test_error5xx_loginpage(self, m):
-        m.register_uri('GET', self.auth_url, text=self.login_data, status_code=500)
-        m.register_uri('POST', self.auth_url, text='<html><body>לך מכאן!</body></html>', status_code=500)
-        self.assertRaisesRegex(FetchException, 'login failed', fetchers.leumicard.login, 'asd', '123')
-
-        history = m.request_history
-        self.assertEqual(m.call_count, 1)
-        self.assertEqual(history[0].method, 'GET')
-        self.assertEqual(history[0].url, self.auth_url)
