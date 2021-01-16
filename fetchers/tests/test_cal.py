@@ -100,6 +100,26 @@ class LoginTest(TestCase):
             '__VIEWSTATEGENERATOR': '456',
             '__VIEWSTATE': '789'})
 
+    def test_bad_stage1_bad_code(self, m):
+        m.register_uri('GET', self.stage1_url, status_code=400, text='<html><body><input name=__EVENTVALIDATION value=123><input name=__VIEWSTATEGENERATOR value=456><input name=__VIEWSTATE value=789></body></html>')
+
+        self.assertRaisesRegex(fetchers.FetchException, 'login failed', fetchers.cal.login_stage1)
+
+    def test_bad_stage1_no_eventvalidation(self, m):
+        m.register_uri('GET', self.stage1_url, text='<html><body><input name=__VIEWSTATEGENERATOR value=456><input name=__VIEWSTATE value=789></body></html>')
+
+        self.assertRaisesRegex(fetchers.FetchException, 'login failed', fetchers.cal.login_stage1)
+
+    def test_bad_stage1_no_viewstategenerator(self, m):
+        m.register_uri('GET', self.stage1_url, text='<html><body><input name=__EVENTVALIDATION value=123><input name=__VIEWSTATE value=789></body></html>')
+
+        self.assertRaisesRegex(fetchers.FetchException, 'login failed', fetchers.cal.login_stage1)
+
+    def test_bad_stage1_no_viewstate(self, m):
+        m.register_uri('GET', self.stage1_url, text='<html><body><input name=__EVENTVALIDATION value=123><input name=__VIEWSTATEGENERATOR value=789></body></html>')
+
+        self.assertRaisesRegex(fetchers.FetchException, 'login failed', fetchers.cal.login_stage1)
+
     def test_good_stage2(self, m):
         m.register_uri('POST', self.stage2_url, json=dict(token="123"))
 
@@ -110,6 +130,18 @@ class LoginTest(TestCase):
         self.assert_(isinstance(s, requests.Session))
         self.assertEqual(token, "123")
 
+    def test_bad_stage2_status_code(self, m):
+        m.register_uri('POST', self.stage2_url, status_code=400, json=dict(token="token"))
+
+        s = requests.Session()
+        self.assertRaisesRegex(fetchers.FetchException, 'login failed', fetchers.cal.login_stage2, s, 'user', 'pass')
+
+    def test_bad_stage2_response(self, m):
+        m.register_uri('POST', self.stage2_url, json="bad login")
+
+        s = requests.Session()
+        self.assertRaisesRegex(fetchers.FetchException, 'login failed', fetchers.cal.login_stage2, s, 'user', 'pass')
+        
     def test_good_stage3(self, m):
         m.register_uri('POST', self.stage3_url, status_code=302, headers=dict(Location=self.final_url))
         m.register_uri('GET', self.final_url, text="YES!")
@@ -120,8 +152,17 @@ class LoginTest(TestCase):
         
         self.assert_(isinstance(s, requests.Session))
 #
-    def test_bad_stage3(self, m):
+    def test_bad_stage3_target_url(self, m):
         m.register_uri('POST', self.stage3_url, status_code=200, text="YES!")
+
+        s = requests.Session()
+        self.assertRaisesRegex(fetchers.FetchException, 'login failed', fetchers.cal.login_stage3, s, dict(eventData='data'), 'token')
+        
+        self.assert_(isinstance(s, requests.Session))
+
+    def test_bad_stage3_status_code(self, m):
+        m.register_uri('POST', self.stage3_url, status_code=302, headers=dict(Location=self.final_url))
+        m.register_uri('GET', self.final_url, status_code=400, text="YES!")
 
         s = requests.Session()
         self.assertRaisesRegex(fetchers.FetchException, 'login failed', fetchers.cal.login_stage3, s, dict(eventData='data'), 'token')

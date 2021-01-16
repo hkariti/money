@@ -110,11 +110,11 @@ def login_stage1():
     s = requests.sessions.Session()
     login_page = s.get(url)
     if not login_page.ok:
-        raise ValueError('login failed: failed fetching login page', response=login_page)
+        raise FetchException('login failed: failed fetching login page', response=login_page)
 
     data = get_input_tag(login_page.text, ['__EVENTVALIDATION', '__VIEWSTATEGENERATOR', '__VIEWSTATE'])
     if len(data) != 3:
-        raise ValueError('login failed: bad login page format', response=login_page)
+        raise FetchException('login failed: bad login page format', response=login_page)
     return s, data
 
 def login_stage2(s, user, passwd):
@@ -125,7 +125,10 @@ def login_stage2(s, user, passwd):
     login_response = s.post(login_url, headers=login_headers, json=login_data)
     try:
         response_json = login_response.json()
-        token = response_json.get('token')
+        if isinstance(response_json, dict):
+            token = response_json.get('token')
+        else:
+            token = None
         if not login_response.ok or not token:
             raise FetchException("login failed: bad auth response", response=login_response)
         return s, token
