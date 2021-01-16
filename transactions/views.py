@@ -52,6 +52,4 @@ def fetch_view(request, backend):
         serialized_transactions = [ TransactionSerializer(t).data for t in transactions ]
         return Response(serialized_transactions)
     except fetchers.FetchException as e:
-        return Response(e.message, status=400)
-    except Exception as e:
-        return Response(e.message, status=500)
+        return Response(str(e), status=400)
