@@ -1,7 +1,7 @@
 import datetime
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, action
 from .models import Account, Transaction, Category
 from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer
 
@@ -18,8 +18,23 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 
 class TransactionViewSet(viewsets.ModelViewSet):
-    queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
+    queryset = Transaction.objects.all()
+
+    def get_queryset(self):
+        queryset = self.queryset
+        if 'year' in self.kwargs:
+            queryset = queryset.filter(transaction_date__year=self.kwargs['year'])
+        if 'month' in self.kwargs:
+            queryset = queryset.filter(transaction_date__month=self.kwargs['month'])
+        if 'day' in self.kwargs:
+            queryset = queryset.filter(transaction_date__day=self.kwargs['day'])
+
+        return queryset.all()
+
+    @action(detail=False, url_path='by_date/(?P<year>[0-9]+)(/(?P<month>[0-9]+)(/(?P<day>[0-9]))?)?')
+    def list_by_date(self, request, *args, **kwargs):
+        return self.list(request)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, many=isinstance(request.data,list))
