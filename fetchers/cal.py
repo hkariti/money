@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from transactions.models import Transaction
 from bs4 import BeautifulSoup
+import json
 
 from .utils import FetchException, get_input_tag
 
@@ -62,16 +63,32 @@ def get_cards_list(parsed_html):
         raise RuntimeError("cal parse error: can't find cards list element")
 
     try:
-        return [ t.find('a').text for t in cards_list.find_all('table') ]
-    except AttributeError:
+        return [ { 'name': t.find('a').text, 'id': t.find('input')['value'], 'idx': i} for i, t in enumerate(cards_list.find_all('table')) ]
+    except (AttributeError, TypeError):
         raise RuntimeError("cal parse error: cards list is malformed")
 
 def select_card(cards_list, card):
-    cards_numbers = [ c[-5:-1] for c in cards_list ]
+    cards_numbers = [ c['name'][-5:-1] for c in cards_list ]
     card_idx = cards_numbers.index(str(card))
     return cards_list[card_idx]
 
-def transaction_payload(card, month, year, parsed_html):
+def select_card_payload(parsed_html, card):
+    hidden_fields_names = [
+        "cmbTransType_HiddenField",
+        "cmbTransOrigin_HiddenField",
+        "cmbPayWallet_HiddenField",
+        "cmbTransAggregation_HiddenField",
+        "__EVENTVALIDATION",
+        "ctl00$__MATRIX_VIEWSTATE",
+        ]
+    hidden_fields = get_input_tag(parsed_html, hidden_fields_names)
+    selected_card = select_card(get_cards_list(parsed_html), card)
+    return {
+            '__EVENTTARGET': f"ctl00$ContentTop$cboCardList$categoryList$outerRep$ctl00$innerRep$ctl{selected_card['idx']:02d}$lnkItem",
+            **hidden_fields
+            }
+
+def transaction_payload(month, year, parsed_html):
     hidden_fields_names = [
         "cmbTransType_HiddenField",
         "cmbTransOrigin_HiddenField",
@@ -85,25 +102,32 @@ def transaction_payload(card, month, year, parsed_html):
     return {
         "__EVENTTARGET": "SubmitRequest",
         "__VIEWSTATE": "",
-        "ctl00$ContentTop$cboCardList$categoryList$lblCollapse": card,
         "ctl00$FormAreaNoBorder$FormArea$rdogrpTransactionType": "rdoDebitDate",
         "ctl00$FormAreaNoBorder$FormArea$clndrDebitDateScope$TextBox": date_field_textbox,
         "ctl00$FormAreaNoBorder$FormArea$clndrDebitDateScope$HiddenField": date_field_hidden,
         **hidden_fields,
     }
 
-def get_transaction_page(s, data=None):
+def get_transaction_page(s, data=None, validate=None, post=None):
+    def _default_validate(response):
+        marker_phrase = 'פירוט עסקות'
+        return response.ok and marker_phrase in response.text
+    _validate = validate or _default_validate
+
+    def _default_post(s, response):
+        parsed_html = BeautifulSoup(response.text, 'html.parser')
+        return s, parsed_html
+    _post = post or _default_post
+
     url = "https://services.cal-online.co.il/Card-Holders/Screens/Transactions/Transactions.aspx"
-    marker_phrase = 'פירוט עסקות'
     if data is None:
         response = s.get(url)
     else:
         response = s.post(url, data=data)
-    if not response.ok or marker_phrase not in response.text:
+    if not _validate(response):
         raise FetchException("cal fetch failed: didn't fetch transaction page", response=response)
-    parsed_html = BeautifulSoup(response.text, 'html.parser')
-    
-    return s, parsed_html
+
+    return _post(s, response)
 
 def login_stage1():
     url = 'https://services.cal-online.co.il/Card-Holders/Screens/AccountManagement/Login.aspx'
@@ -156,18 +180,17 @@ def login(user, passwd):
 def get_month_transactions(s, month, year, accounts):
     try:
         s, transaction_page = get_transaction_page(s)
-        cards_list = get_cards_list(transaction_page)
         transactions = []
         for a in accounts:
             try:
-                card = select_card(cards_list, a.backend_id)
+                payload = select_card_payload(transaction_page, a.backend_id)
             except ValueError:
                 print("cal parser: couldn't find card for account:", a)
                 continue
-            s, transaction_page = get_transaction_page(s, transaction_payload(card, month, year, transaction_page))
+            s = get_transaction_page(s, payload, validate=lambda r: r.ok is True, post=lambda s, r: s)
+            payload = transaction_payload(month, year, transaction_page)
+            s, transaction_page = get_transaction_page(s, payload)
             transactions += parse(transaction_page, from_account=a)
         return transactions
     except FetchException:
         raise
-    except Exception as e:
-        raise FetchException("Failed to get transactions", response=e)
