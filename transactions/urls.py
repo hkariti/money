@@ -6,6 +6,7 @@ router = DefaultRouter()
 router.register('accounts', views.AccountViewSet)
 router.register('transactions', views.TransactionViewSet)
 router.register('categories', views.CategoryViewSet)
+router.register('pattern', views.PatternViewSet)
 
 urlpatterns = [
     path('fetch/<slug:backend>', views.fetch_view),

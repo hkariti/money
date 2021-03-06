@@ -7,3 +7,5 @@ django-cors-headers
 jedi
 funcy
 retry
+jsonfield
+jsonschema

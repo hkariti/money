@@ -3,6 +3,7 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.constraints import UniqueConstraint
 from django.core.exceptions import ValidationError
+import jsonfield
 
 import funcy
 
@@ -28,6 +29,12 @@ class Category(models.Model):
 
     def natural_key(self):
         return self.title
+
+class Pattern(models.Model):
+    name = models.CharField(max_length=10, default='', unique=True)
+    matcher = jsonfield.JSONField()
+    target_category = models.ForeignKey(Category, on_delete=models.PROTECT, null=False, blank=False)
+    enabled = models.BooleanField(default=False)
 
 class Transaction(models.Model):
     transaction_date = models.DateField()

@@ -2,10 +2,11 @@ import datetime
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, action
-from .models import Account, Transaction, Category
-from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer
+from .models import Account, Transaction, Category, Pattern
+from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer, PatternSerializer
 
 import fetchers
+from .auto_category import categorize
 
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
@@ -15,6 +16,11 @@ class AccountViewSet(viewsets.ModelViewSet):
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+
+
+class PatternViewSet(viewsets.ModelViewSet):
+    queryset = Pattern.objects.all()
+    serializer_class = PatternSerializer
 
 
 class TransactionViewSet(viewsets.ModelViewSet):
@@ -55,6 +61,7 @@ def fetch_view(request, backend):
         month = int(request.data.get("month", datetime.date.today().month))
         year = int(request.data.get("year", datetime.date.today().year))
         accounts = list(Account.objects.filter(backend_type=backend))
+        auto_category_rules = list(Pattern.objects.all())
     except KeyError as e:
         return Response("'user' and 'pass' params are required", status=400)
     except ValueError:
@@ -64,6 +71,8 @@ def fetch_view(request, backend):
     try:
         s = backend_obj.login(user, passwd)
         transactions = backend_obj.get_month_transactions(s, month, year, accounts)
+        for t in transactions:
+            t.category = categorize(auto_category_rules, t)
         serialized_transactions = [ TransactionSerializer(t).data for t in transactions ]
         return Response(serialized_transactions)
     except fetchers.FetchException as e:
