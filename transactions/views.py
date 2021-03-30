@@ -43,11 +43,26 @@ class TransactionViewSet(viewsets.ModelViewSet):
         return self.list(request)
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data, many=isinstance(request.data,list))
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        bulk_data = request.data if isinstance(request.data, list) else [request.data]
+        serializer = self.get_serializer(data=bulk_data, many=True)
+        if serializer.is_valid(raise_exception=False):
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            written = []
+            errors = {}
+            for i, e in enumerate(serializer.create_errors):
+                if e:
+                    errors[i] = e
+                else:
+                    written.append(serializer.data[i])
+            if errors:
+                message="partial_write"
+            else:
+                message="ok"
+            return Response(dict(message=message, written=written, errors=errors), status=status.HTTP_201_CREATED)
+        else:
+            errors = { i: e for i, e in enumerate(serializer.errors) if e }
+            return Response(dict(message="failed_validation", errors=errors), status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(http_method_names=['POST'])
 def fetch_view(request, backend):

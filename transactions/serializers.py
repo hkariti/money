@@ -32,12 +32,34 @@ class PatternSerializer(serializers.ModelSerializer):
         return data
 
 
+class NonAtomicListSerializer(serializers.ListSerializer):
+    """
+    A serializer that writes bulk-data non atomically. This is to skip over objects that could not be written.
+    """
+    def create(self, validated_data):
+        written = []
+        errors = []
+        for t in validated_data:
+            try:
+                written.append(self.child.create(t))
+                errors.append({})
+            except serializers.ValidationError as e:
+                errors.append(e.detail)
+        self.create_errors = errors
+        return written
+
+
 class TransactionSerializer(serializers.ModelSerializer):
     category = serializers.SlugRelatedField(slug_field='title', queryset=Category.objects.all(), allow_null=True)
     from_account = serializers.SlugRelatedField(slug_field='name', queryset=Account.objects.all(), allow_null=True)
     to_account = serializers.SlugRelatedField(slug_field='name', queryset=Account.objects.all(), allow_null=True)
 
-    # Yes, this validators are an exact copy of the ones in the Model. This is a design choice of DRF to separate
+    def create(self, validated_data):
+       try:
+           return Transaction.objects.create(**validated_data)
+       except Exception as e:
+           raise serializers.ValidationError(dict(create=str(e)))
+    # Yes, this validator are an exact copy of the one in the Model. This is a design choice of DRF to separate
     # validation and the model. I think that's stupid, at least for my case, but their validation errors are nice.
     def validate(self, data):
         if not data['from_account'] and not data['to_account']:
@@ -46,11 +68,5 @@ class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = ['id', 'transaction_date', 'bill_date', 'from_account', 'to_account', 'transaction_amount', 'description', 'category', 'original_currency', 'billed_amount', 'confirmation', 'notes']
-        validators = [
-            UniqueTogetherValidator(fields=['transaction_date', 'from_account', 'to_account', 'billed_amount', 'description'],
-                             queryset=Transaction.objects.all()),
-            UniqueTogetherValidator(fields=['transaction_date', 'to_account', 'billed_amount', 'description'],
-                             queryset=Transaction.objects.filter(from_account=None)),
-            UniqueTogetherValidator(fields=['transaction_date', 'from_account', 'billed_amount', 'description'],
-                             queryset=Transaction.objects.filter(to_account=None))
-        ]
+
+        list_serializer_class = NonAtomicListSerializer
