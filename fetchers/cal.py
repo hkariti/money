@@ -32,11 +32,26 @@ def parse_row(row_html, bill_date, from_account):
             notes = comment
             )
 
+def parse_errors(page_html):
+    error_box = page_html.find(id="ctl00_FormAreaNoBorder_FormArea_msgboxErrorMessages")
+    if not error_box:
+        return None
+    else:
+        error_message = error_box.text.strip()
+        return error_message
+
 def parse(page_html, from_account=None):
-    bill_date_headline = page_html.find(id='ctl00_FormAreaNoBorder_FormArea_ctlMainToolBar_lblCaption').text
+    error_message = parse_errors(page_html)
+    if error_message:
+        if error_message == "לא נמצאו נתונים":
+            return []
+        else:
+            raise RuntimeError(f"cal: Error when fetching data: {error_message}")
+    
+    bill_date_headline = page_html.find(id='ctl00_FormAreaNoBorder_FormArea_ctlMainToolBar_lblCaption')
     if bill_date_headline is None:
         raise RuntimeError("cal parse error: can't find bill date element")
-    bill_date = datetime.strptime(bill_date_headline.split()[-1], '%d/%m/%Y').date()
+    bill_date = datetime.strptime(bill_date_headline.text.split()[-1], '%d/%m/%Y').date()
     main_grid = page_html.find(id='ctlMainGrid')
     if main_grid is None:
         raise RuntimeError("cal parse error: can't find transaction table element")
@@ -96,6 +111,7 @@ def transaction_payload(month, year, parsed_html):
         "cmbTransAggregation_HiddenField",
         "__EVENTVALIDATION",
         "ctl00$__MATRIX_VIEWSTATE",
+        "cmbTransCashAccount_HiddenField",
         ]
     hidden_fields = get_input_tag(parsed_html, hidden_fields_names)
     date_field_hidden, date_field_textbox = select_date(month, year, parsed_html)

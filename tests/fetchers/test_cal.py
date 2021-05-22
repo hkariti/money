@@ -18,6 +18,8 @@ class ParseTest(TestCase):
         self.transaction_page1 = BeautifulSoup(html, 'html.parser')
         html = open(f'{FIXTURE_DIR}/cal_transactions_acc2.html', 'r').read()
         self.transaction_page2 = BeautifulSoup(html, 'html.parser')
+        html = open(f'{FIXTURE_DIR}/cal_transactions_noresults_acc1.html', 'r').read()            
+        self.transaction_page_noresults = BeautifulSoup(html, 'html.parser')
         self.accounts = [
                 Account(backend_id='1234'),
                 Account(backend_id='0345')
@@ -52,6 +54,11 @@ class ParseTest(TestCase):
         self.assert_(t0.description == "דיזול אדר-צמרת")
         self.assert_(t0.original_currency == "ILS")
         self.assert_(t0.notes == '')
+
+    def test_noresults(self):
+        accounts = self.accounts[0]
+        transactions = fetchers.cal.parse(self.transaction_page_noresults)
+        self.assert_(transactions == [])
 
     def test_missing_account(self):
         accounts = self.accounts
