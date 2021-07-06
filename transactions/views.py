@@ -1,4 +1,5 @@
 import datetime
+import itertools
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, action
@@ -64,6 +65,16 @@ class TransactionViewSet(viewsets.ModelViewSet):
             errors = { i: e for i, e in enumerate(serializer.errors) if e }
             return Response(dict(message="failed_validation", errors=errors), status=status.HTTP_400_BAD_REQUEST)
 
+def loop_months(month, year, end_month, end_year):
+    if (not 1 <= month <= 12) or (not 1 <= end_month <= 12) or year <= 0 or end_year <= 0:
+        raise ValueError("months must be between 1 and 12, years must be positive")
+    while year < end_year or (year == end_year and month <= end_month):
+        yield month, year
+        month += 1
+        if month == 13:
+            month = 1
+            year += 1
+
 @api_view(http_method_names=['POST'])
 def fetch_view(request, backend):
     try:
@@ -75,6 +86,8 @@ def fetch_view(request, backend):
         passwd = request.data["pass"]
         month = int(request.data.get("month", datetime.date.today().month))
         year = int(request.data.get("year", datetime.date.today().year))
+        end_month = int(request.data.get('end_month', month))
+        end_year = int(request.data.get("end_year", year))
         accounts = list(Account.objects.filter(backend_type=backend))
         auto_category_rules = list(Pattern.objects.all())
     except KeyError as e:
@@ -85,7 +98,8 @@ def fetch_view(request, backend):
         return Response(f'Error: {e}', status=500)
     try:
         s = backend_obj.login(user, passwd)
-        transactions = backend_obj.get_month_transactions(s, month, year, accounts)
+        transactions_per_month = [ backend_obj.get_month_transactions(s, m, y, accounts) for m, y in loop_months(month, year, end_month, end_year)]
+        transactions = list(itertools.chain.from_iterable(transactions_per_month))
         for t in transactions:
             t.category = categorize(auto_category_rules, t)
         serialized_transactions = [ TransactionSerializer(t).data for t in transactions ]
