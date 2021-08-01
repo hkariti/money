@@ -9,7 +9,7 @@ from .auto_category import verify_rule
 class AccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
-        fields = ['id', 'name', 'backend_id', 'backend_type']
+        fields = ['id', 'name', 'backend_id', 'backend_type', 'settings']
 
 
 class CategorySerializer(serializers.ModelSerializer):
