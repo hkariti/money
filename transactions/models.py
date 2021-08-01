@@ -11,6 +11,7 @@ class Account(models.Model):
     name = models.CharField(max_length=100, unique=True)
     backend_id = models.CharField(max_length=100)
     backend_type = models.CharField(max_length=100)
+    settings = jsonfield.JSONField()
 
     def __str__(self):
         return self.name
@@ -69,4 +70,3 @@ class Transaction(models.Model):
                 name='some_account_not_null'
             )
         ]
-
