@@ -5,8 +5,6 @@ from django.db.models.constraints import UniqueConstraint
 from django.core.exceptions import ValidationError
 import jsonfield
 
-import funcy
-
 class Account(models.Model):
     name = models.CharField(max_length=100, unique=True)
     backend_id = models.CharField(max_length=100)
