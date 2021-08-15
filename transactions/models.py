@@ -7,8 +7,6 @@ import jsonfield
 import jsonschema
 import fetchers
 
-import funcy
-
 class Account(models.Model):
     name = models.CharField(max_length=100, unique=True)
     backend_id = models.CharField(max_length=100)
