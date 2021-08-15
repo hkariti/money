@@ -5,7 +5,7 @@ from django.db.models.constraints import UniqueConstraint
 from django.core.exceptions import ValidationError
 import jsonfield
 import jsonschema
-import fetchers
+from .validators import validate_schema
 
 class Account(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -20,17 +20,12 @@ class Account(models.Model):
         return self.name
 
     def clean(self):
-        try:
-            backend = fetchers.get_backend(self.backend_type)
-        except KeyError:
-            raise ValidationError("%(backend): Bad backend value", params={'backend': self.backend_type})
         if self.settings is None:
             return
-        settings_schema = getattr(backend, schema, None)
-        if settings_schema is None:
-            return
         try:
-            jsonschema.validate(self.settings, settings_schema)
+            validate_schema(self.backend_type, self.settings)
+        except KeyError:
+            raise ValidationError("%(backend): Bad backend value", params={'backend': self.backend_type})
         except jsonschema.exceptions.ValidationError:
             raise ValidationError(
                 '%(value)s failed JSON schema check', params={'value': settings_schema}
