@@ -11,7 +11,7 @@ class Account(models.Model):
     name = models.CharField(max_length=100, unique=True)
     backend_id = models.CharField(max_length=100)
     backend_type = models.CharField(max_length=100)
-    settings = jsonfield.JSONField(null=True)
+    settings = jsonfield.JSONField(null=True, validators=[])
 
     def __str__(self):
         return self.name

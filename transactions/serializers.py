@@ -3,13 +3,27 @@ from rest_framework import serializers
 from django.db.models import Q, CheckConstraint
 from rest_framework.validators import UniqueTogetherValidator
 
+from .validators import validate_schema, SchemaError
 from .auto_category import verify_rule
 
 
 class AccountSerializer(serializers.ModelSerializer):
+    settings = serializers.JSONField()
     class Meta:
         model = Account
         fields = ['id', 'name', 'backend_id', 'backend_type', 'settings']
+
+    def validate(self, data):
+        if data['settings'] is None:
+            return
+        try:
+            validate_schema(data['backend_type'], data['settings'])
+        except KeyError:
+            raise serializers.ValidationError(f"{data['backend_type']}: Bad backend type")
+        except SchemaError as e:
+            raise serializers.ValidationError(f'settings field failed JSON schema check: {e.message}')
+
+        return data
 
 
 class CategorySerializer(serializers.ModelSerializer):
