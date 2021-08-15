@@ -6,7 +6,7 @@ from transactions.models import Transaction, Account
 from .utils import FetchException
 
 
-_SCHEMA = {
+schema = {
     "$id": "https://localhost:8000/savings_settings.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "Savings Account Settings",
@@ -31,12 +31,9 @@ _SCHEMA = {
 }
 
 try:
-    jsonschema.Draft7Validator.check_schema(_SCHEMA)
+    jsonschema.Draft7Validator.check_schema(schema)
 except Exception as e:
     warnings.warn(f"Failed validating schema: {e}")
-
-_VALIDATOR = jsonschema.Draft7Validator(_SCHEMA)
-
 
 def get_expense(month, year, account):
     today = datetime.datetime(year, month, 1)

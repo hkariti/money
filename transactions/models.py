@@ -4,6 +4,8 @@ from django.db.models import Q
 from django.db.models.constraints import UniqueConstraint
 from django.core.exceptions import ValidationError
 import jsonfield
+import jsonschema
+import fetchers
 
 import funcy
 
@@ -11,13 +13,31 @@ class Account(models.Model):
     name = models.CharField(max_length=100, unique=True)
     backend_id = models.CharField(max_length=100)
     backend_type = models.CharField(max_length=100)
-    settings = jsonfield.JSONField(null=True)
+    settings = jsonfield.JSONField(null=True, validators=[])
 
     def __str__(self):
         return self.name
 
     def natural_key(self):
         return self.name
+
+    def clean(self):
+        try:
+            backend = fetchers.get_backend(self.backend_type)
+        except KeyError:
+            raise ValidationError("%(backend): Bad backend value", params={'backend': self.backend_type})
+        if self.settings is None:
+            return
+        settings_schema = getattr(backend, schema, None)
+        if settings_schema is None:
+            return
+        try:
+            jsonschema.validate(self.settings, settings_schema)
+        except jsonschema.exceptions.ValidationError:
+            raise ValidationError(
+                '%(value)s failed JSON schema check', params={'value': settings_schema}
+            )
+
 
     class Meta:
         unique_together = (('backend_id', 'backend_type'),)
