@@ -19,19 +19,6 @@ class Account(models.Model):
     def natural_key(self):
         return self.name
 
-    def clean(self):
-        if self.settings is None:
-            return
-        try:
-            validate_schema(self.backend_type, self.settings)
-        except KeyError:
-            raise ValidationError("%(backend): Bad backend value", params={'backend': self.backend_type})
-        except jsonschema.exceptions.ValidationError:
-            raise ValidationError(
-                '%(value)s failed JSON schema check', params={'value': settings_schema}
-            )
-
-
     class Meta:
         unique_together = (('backend_id', 'backend_type'),)
 

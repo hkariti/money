@@ -11,6 +11,16 @@ class AccountSerializer(serializers.ModelSerializer):
         model = Account
         fields = ['id', 'name', 'backend_id', 'backend_type', 'settings']
 
+    def validate(self, data):
+        if data['settings'] is None:
+            return
+        try:
+            validate_schema(data['backend_type'], data['settings'])
+        except KeyError:
+            raise serializers.ValidationError(f"{data['backend_type']}: Bad backend type")
+        except jsonschema.exceptions.SchemaError as e:
+            raise serializers.ValidationError(f'settings field failed JSON schema check: {e.message}')
+
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
