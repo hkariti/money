@@ -3,11 +3,18 @@ import itertools
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, action
-from .models import Account, Transaction, Category, Pattern
-from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer, PatternSerializer
+from .models import AuthSource, Account, Transaction, Category, Pattern
+from .serializers import AccountSerializer, AuthSourceSerializer, TransactionSerializer, CategorySerializer, PatternSerializer
 
 import fetchers
+import auth_sources
 from .auto_category import categorize
+
+
+class AuthSourceViewSet(viewsets.ModelViewSet):
+    queryset = AuthSource.objects.all()
+    serializer_class = AuthSourceSerializer
+
 
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
@@ -82,27 +89,38 @@ def fetch_view(request, backend):
     except KeyError:
         return Response(f'Unknown backend: {backend}', status=404)
     try:
-        user = request.data["user"]
+        auth_source_obj = AuthSource.objects.all()[0]
+        auth_source = auth_sources.get_backend(auth_source_obj.auth_type)(**auth_source_obj.settings)
+    except KeyError:
+        return Response(f'Unknown auth source: {auth_source_obj.auth_type}', status=404)
+    try:
         passwd = request.data["pass"]
         month = int(request.data.get("month", datetime.date.today().month))
         year = int(request.data.get("year", datetime.date.today().year))
         end_month = int(request.data.get('end_month', month))
         end_year = int(request.data.get("end_year", year))
-        accounts = list(Account.objects.filter(backend_type=backend))
+        get_item_id = lambda a: a.auth_source_item_id
+        accounts_by_auth_source = itertools.groupby(sorted(Account.objects.filter(backend_type=backend), key=get_item_id), key=get_item_id)
         auto_category_rules = list(Pattern.objects.all())
     except KeyError as e:
-        return Response("'user' and 'pass' params are required", status=400)
+        return Response("'pass' param is required", status=400)
     except ValueError:
         return Response("'month' and 'year' must be integers", status=400)
     except Exception as e:
         return Response(f'Error: {e}', status=500)
     try:
-        s = backend_obj.login(user, passwd)
-        transactions_per_month = [ backend_obj.get_month_transactions(s, m, y, accounts) for m, y in loop_months(month, year, end_month, end_year)]
-        transactions = list(itertools.chain.from_iterable(transactions_per_month))
-        for t in transactions:
-            t.category = categorize(auto_category_rules, t)
-        serialized_transactions = [ TransactionSerializer(t).data for t in transactions ]
-        return Response(serialized_transactions)
+        with auth_source.unlock(passwd):
+            transactions = []
+            for item_id, accounts in accounts_by_auth_source:
+                authinfo = auth_source.get_auth_info(item_id)
+                s = backend_obj.login(authinfo['username'], authinfo['password'])
+                transactions_per_month = [ backend_obj.get_month_transactions(s, m, y, accounts) for m, y in loop_months(month, year, end_month, end_year)]
+                transactions += list(itertools.chain.from_iterable(transactions_per_month))
     except fetchers.FetchException as e:
         return Response(str(e), status=400)
+    except auth_sources.AuthError as e:
+        return Response(str(e), status=400)
+    for t in transactions:
+        t.category = categorize(auto_category_rules, t)
+    serialized_transactions = [ TransactionSerializer(t).data for t in transactions ]
+    return Response(serialized_transactions)

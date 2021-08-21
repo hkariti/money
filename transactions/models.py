@@ -5,11 +5,24 @@ from django.db.models.constraints import UniqueConstraint
 from django.core.exceptions import ValidationError
 import jsonfield
 
+class AuthSource(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    auth_type = models.CharField(max_length=100)
+    settings = jsonfield.JSONField(null=True, validators=[])
+
+    def __str__(self):
+        return self.name
+
+    def natural_key(self):
+        return self.name
+
 class Account(models.Model):
     name = models.CharField(max_length=100, unique=True)
     backend_id = models.CharField(max_length=100)
     backend_type = models.CharField(max_length=100)
     settings = jsonfield.JSONField(null=True, validators=[])
+    auth_source_name = models.ForeignKey(AuthSource, on_delete=models.PROTECT, null=True, blank=True)
+    auth_source_item_id = models.CharField(null=True, max_length=100)
 
     def __str__(self):
         return self.name
