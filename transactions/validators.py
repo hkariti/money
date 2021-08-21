@@ -1,4 +1,5 @@
 import jsonschema
+from jsonschema.exceptions import SchemaError
 
 SCHEMAS = {
     'recurring': {

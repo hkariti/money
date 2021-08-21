@@ -4,8 +4,6 @@ from django.db.models import Q
 from django.db.models.constraints import UniqueConstraint
 from django.core.exceptions import ValidationError
 import jsonfield
-import jsonschema
-from .validators import validate_schema
 
 class Account(models.Model):
     name = models.CharField(max_length=100, unique=True)
