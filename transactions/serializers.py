@@ -8,6 +8,7 @@ from .auto_category import verify_rule
 
 
 class AccountSerializer(serializers.ModelSerializer):
+    settings = serializers.JSONField()
     class Meta:
         model = Account
         fields = ['id', 'name', 'backend_id', 'backend_type', 'settings']
@@ -21,6 +22,8 @@ class AccountSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f"{data['backend_type']}: Bad backend type")
         except SchemaError as e:
             raise serializers.ValidationError(f'settings field failed JSON schema check: {e.message}')
+
+        return data
 
 
 class CategorySerializer(serializers.ModelSerializer):
