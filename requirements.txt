@@ -9,3 +9,4 @@ funcy
 retry
 jsonfield
 jsonschema
+selenium
