@@ -114,7 +114,7 @@ def fetch_view(request, backend):
             for item_id, accounts in accounts_by_auth_source:
                 authinfo = auth_source.get_auth_info(item_id)
                 s = backend_obj.login(authinfo['username'], authinfo['password'])
-                transactions_per_month = [ backend_obj.get_month_transactions(s, m, y, accounts) for m, y in loop_months(month, year, end_month, end_year)]
+                transactions_per_month = [ backend_obj.get_month_transactions(s, m, y, list(accounts)) for m, y in loop_months(month, year, end_month, end_year)]
                 transactions += list(itertools.chain.from_iterable(transactions_per_month))
     except fetchers.FetchException as e:
         return Response(str(e), status=400)
