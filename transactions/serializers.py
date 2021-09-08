@@ -25,8 +25,8 @@ class AuthSourceSerializer(serializers.ModelSerializer):
         return data
 
 class AccountSerializer(serializers.ModelSerializer):
-    settings = serializers.JSONField(allow_null=True)
-    auth_source_name = serializers.SlugRelatedField(slug_field='name', queryset=AuthSource.objects.all(), allow_null=True)
+    settings = serializers.JSONField(allow_null=True, required=False)
+    auth_source_name = serializers.SlugRelatedField(slug_field='name', queryset=AuthSource.objects.all(), allow_null=True, required=False)
 
     class Meta:
         model = Account
@@ -34,14 +34,14 @@ class AccountSerializer(serializers.ModelSerializer):
 
 
     def validate(self, data):
-        if data['settings'] is not None:
+        if data.get('settings') is not None:
             try:
                 validate_account_schema(data['backend_type'], data['settings'])
             except KeyError:
                 raise serializers.ValidationError(f"{data['backend_type']}: Bad backend type")
             except SchemaError as e:
                 raise serializers.ValidationError(f'settings field failed JSON schema check: {e.message}')
-        if data['auth_source_name'] is None and data['auth_source_item_id'] is not None:
+        if data.get('auth_source_name') is None and data.get('auth_source_item_id') is not None:
                 raise serializers.ValidationError(f'auth_source_item_id can not be null if auth_source_name is null')
 
         return data
