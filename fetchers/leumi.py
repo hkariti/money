@@ -20,14 +20,14 @@ def parseBankinDat(accounts, bankin):
                                    bill_date=get_date(e[1]),
                                    transaction_amount=abs(amount),
                                    billed_amount=abs(amount),
-                                   description=e[2],
+                                   description=e[2][::-1],
                                    confirmation=int(e[0]))
             return Transaction(to_account=get_account(e[6]),
                                transaction_date=get_date(e[1]),
                                bill_date=get_date(e[1]),
                                transaction_amount=abs(amount),
                                billed_amount=abs(amount),
-                               description=e[2],
+                               description=e[2][::-1],
                                confirmation=int(e[0]))
         except:
             return None
