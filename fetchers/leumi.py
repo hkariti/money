@@ -114,6 +114,16 @@ def login(user, passwd, timeout=10):
 
     return s
 
+def get_transactions_stream(s, anchor, target_date, accounts):
+    anchor_account, anchor_date, anchor_confirmation = parse_anchor(anchor, accounts)
+    csv = fetch_csv(s, anchor_date, target_date)
+    transactions = parseBankinDat(accounts, csv)
+    anchor_idx = find_transaction(transactions, anchor_account, anchor_date, anchor_confirmation)
+    tailed_transactions = transactions[anchor_idx+1:]
+    new_anchor = create_anchor(tailed_transactions[-1])
+
+    return tailed_transactions, new_anchor
+
 def get_month_transactions(s, month, year, accounts):
     from_date = datetime.date(year, month, 1).strftime('%d/%m/%y')
     inc_month = 1 + (month % 12)
