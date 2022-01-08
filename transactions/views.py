@@ -56,13 +56,11 @@ class TransactionViewSet(viewsets.ModelViewSet):
         if serializer.is_valid(raise_exception=False):
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
-            written = []
+            written = list(serializer.data)
             errors = {}
             for i, e in enumerate(serializer.create_errors):
                 if e:
                     errors[i] = e
-                else:
-                    written.append(serializer.data[i])
             if errors:
                 message="partial_write"
             else:
