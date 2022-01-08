@@ -2,11 +2,13 @@
 import requests
 from datetime import datetime
 from transactions.models import Transaction
+import json
 
 from .utils import FetchException
 
 def get_month_transactions_raw(s, month, year):
-    url = f'https://onlinelcapi.max.co.il/api/registered/transactionDetails/getTransactionsAndGraphs?filterData={{%22monthView%22:true,%22date%22:%22{year:d}-{month:02d}-01%22}}'
+    data = {"userIndex":-1, "cardIndex":-1, "monthView": True , "date": f"{year:d}-{month:02d}-01", "bankAccount": {"bankAccountIndex": -1, "cards": None}}
+    url = f'https://onlinelcapi.max.co.il/api/registered/transactionDetails/getTransactionsAndGraphs?filterData={json.dumps(data)}'
     response = s.get(url)
     if not response.ok:
         raise FetchException("Failed to get transactions", response=response)
