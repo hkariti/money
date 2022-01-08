@@ -31,7 +31,7 @@ class BitWardenAuthSource(AuthSource):
             args = args + ('--session', session)
         ret = self._run_bw(*args, environ=environ)
         if ret.returncode != 0:
-            raise AuthError(f"bw exited with return code {ret.returncode}.\nStdout:\n{ret.stdout}\nStderr:\n{ret.stderr}", runinfo=ret)
+            raise AuthError(f"bw exited with return code {ret.returncode}.\nStdout:\n{ret.stdout}\nStderr:\n{ret.stderr}", info=ret)
 
         return ret.stdout
 
@@ -40,6 +40,6 @@ class BitWardenAuthSource(AuthSource):
             item = self.bw("get", "item", item_id, session=self.sessionkey)
             return json.loads(item)
         except AuthError as e:
-            if e.runinfo.stderr == 'Not found.':
+            if e.info.stderr == 'Not found.':
                 return None 
             raise
