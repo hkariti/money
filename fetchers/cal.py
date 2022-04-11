@@ -26,8 +26,8 @@ def parse_row(row_html, bill_date, from_account):
             transaction_date = datetime.strptime(transaction_date_str, '%d/%m/%y').date(),
             bill_date = bill_date,
             description = description,
-            transaction_amount = float(transaction_amount_str),
-            billed_amount = float(bill_amount_str),
+            transaction_amount = float(transaction_amount_str.replace(",", "")),
+            billed_amount = float(bill_amount_str.replace(",", "")),
             original_currency = SYMBOL_TO_CURRENCY[transaction_currency_symbol],
             notes = comment
             )
