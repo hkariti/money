@@ -114,11 +114,36 @@ def login(user, passwd, timeout=10):
 
     return s
 
+def parse_anchor(anchor):
+    backend_id, date_str, confirmation_str = anchor.split("|", 3)
+    date = datetime.date.fromisoformat(date_str)
+    confirmation = int(confirmation_str)
+
+    return backend_id, date, confirmation
+
+def find_transaction(transactions, anchor_account_id, anchor_date, anchor_confirmation):
+    target_transaction = None
+    for i, t in enumerate(transactions):
+        transaction_account = t.from_account or t.to_account
+        if transaction_account.backend_id == anchor_account_id \
+                and t.transaction_date == anchor_date \
+                and t.confirmation == anchor_confirmation:
+                    return i
+    raise ValueError("Can't find anchor")
+
+def create_anchor(transaction):
+    transaction_account = transaction.from_account or transaction.to_account
+    account_id = transaction_account.backend_id
+    date = transaction.transaction_date.isoformat()
+    confirmation = transaction.confirmation
+
+    return f"{account_id}|{date}|{confirmation}"
+
 def get_transactions_stream(s, anchor, target_date, accounts):
-    anchor_account, anchor_date, anchor_confirmation = parse_anchor(anchor, accounts)
+    anchor_account_id, anchor_date, anchor_confirmation = parse_anchor(anchor)
     csv = fetch_csv(s, anchor_date, target_date)
     transactions = parseBankinDat(accounts, csv)
-    anchor_idx = find_transaction(transactions, anchor_account, anchor_date, anchor_confirmation)
+    anchor_idx = find_transaction(transactions, anchor_account_id, anchor_date, anchor_confirmation)
     tailed_transactions = transactions[anchor_idx+1:]
     new_anchor = create_anchor(tailed_transactions[-1])
 
